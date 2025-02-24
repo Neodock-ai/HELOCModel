@@ -5,7 +5,7 @@ import pandas as pd
 import xgboost as xgb
 
 # Load the trained model (Booster object)
-model = joblib.load('/content/ML_Model FINAL.pkl')  # Ensure correct path
+model = joblib.load('ML_Model FINAL.pkl')  # Ensure correct path
 
 # Streamlit UI
 st.title("🏦 HELOC Eligibility Predictor")
