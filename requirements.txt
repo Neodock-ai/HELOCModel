@@ -1,5 +1,7 @@
 streamlit
-joblib
+matplotlib
+seaborn
 pandas
 xgboost
 openai
+joblib
