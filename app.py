@@ -43,9 +43,11 @@ def load_heloc_data():
 
 heloc_data, full_data = load_heloc_data()
 
-# **Initialize global variables**
-probability = None  
-user_input = None  
+# **Initialize session state if not set**
+if "probability" not in st.session_state:
+    st.session_state.probability = None
+    st.session_state.prediction = None
+    st.session_state.user_input = None
 
 # Streamlit UI with Tabs
 tab1, tab2 = st.tabs(["📊 HELOC Predictor", "📈 Dashboard"])
@@ -84,10 +86,15 @@ with tab1:
 
             # Convert probability into a binary classification
             threshold = 0.5  # Adjust if needed
-            prediction = 1 if probability >= threshold else 0
+            prediction = "Eligible" if probability >= threshold else "Not Eligible"
+
+            # **Store results in session state**
+            st.session_state.probability = probability
+            st.session_state.prediction = prediction
+            st.session_state.user_input = user_input
 
             # Show results
-            if prediction == 1:
+            if prediction == "Eligible":
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
                 explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
             else:
@@ -124,18 +131,20 @@ with tab2:
     st.title("📈 Personalized HELOC Insights Dashboard")
     st.write("🔍 Explore insights based on your entered data.")
 
-    if probability is not None:
+    if st.session_state.probability is not None:
+        user_input = st.session_state.user_input  # Retrieve stored input
+
         # **DYNAMIC KPIs** based on user input
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("📈 Approval Probability", f"{probability:.2%}")
+            st.metric("📈 Approval Probability", f"{st.session_state.probability:.2%}")
         with col2:
             st.metric("💳 Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
         with col3:
             st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
 
-        # **Visualizing User Input Compared to Historical Data**
-        st.subheader("📊 Your Input vs. HELOC Trends")
+        # **User Input vs Dataset Trends**
+        st.subheader("📊 Your Credit Score vs Dataset Distribution")
 
         fig, ax = plt.subplots(figsize=(6, 3))
         sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
@@ -156,7 +165,7 @@ with tab2:
                 client = openai.OpenAI(api_key=api_key)
                 response = client.chat.completions.create(
                     model="gpt-4",
-                    messages=[{"role": "user", "content": user_question}]
+                    messages=[{"role": "user", "content": f"Based on the user's inputs: {st.session_state.user_input}, {user_question}"}]
                 )
                 st.write("💬 **AI Response:**")
                 st.write(response.choices[0].message.content)
