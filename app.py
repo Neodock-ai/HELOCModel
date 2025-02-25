@@ -3,14 +3,47 @@ import joblib
 import openai
 import pandas as pd
 import xgboost as xgb
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from imblearn.over_sampling import SMOTE
+from collections import Counter
 
-# Load the trained model
+# Load the trained model (Booster object)
 model = joblib.load('ML_Model FINAL.pkl')  # Ensure correct path
-data = pd.read_csv('heloc_dataset_v1.csv')  # Load HELOC dataset for dashboard
 
-# Create Tabs for Predictor & Dashboard
+# Load and preprocess the HELOC dataset for the dashboard
+@st.cache_resource
+def load_heloc_data():
+    df = pd.read_csv("heloc_dataset_v1.csv")  # Ensure correct path
+
+    # Remove rows with missing values (-9)
+    df = df[~df.isin([-9]).any(axis=1)]
+
+    # Replace -7 with group means based on RiskPerformance
+    group_means = df.replace(-7, np.nan).groupby('RiskPerformance').mean()
+
+    def impute_with_group_mean(row):
+        for col in df.columns:
+            if col == 'RiskPerformance' or not np.issubdtype(df[col].dtype, np.number):
+                continue
+            if row[col] == -7:
+                row[col] = group_means.loc[row['RiskPerformance'], col]
+        return row
+
+    df = df.apply(impute_with_group_mean, axis=1)
+
+    # Remove duplicate rows
+    df = df.drop_duplicates()
+
+    # Select only necessary columns
+    selected_features = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
+                         'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
+
+    return df[selected_features], df  # Return both the selected features and full dataset
+
+heloc_data, full_data = load_heloc_data()
+
+# Streamlit UI with Tabs
 tab1, tab2 = st.tabs(["📊 HELOC Predictor", "📈 Dashboard"])
 
 # -----------------------  TAB 1: HELOC PREDICTOR -----------------------
@@ -22,8 +55,9 @@ with tab1:
     api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
 
     # Define input fields (only 5 selected features)
-    feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
-    
+    feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
+                     'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
+
     user_input = {
         'ExternalRiskEstimate': st.slider("📈 External Risk Estimate (Credit Score)", 0, 100, 50),
         'MSinceMostRecentDelq': st.slider("📅 Months Since Most Recent Delinquency", 0, 100, 10),
@@ -51,23 +85,24 @@ with tab1:
             # Show results
             if prediction == 1:
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
+                explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
-
-            # AI Explanation
-            if api_key:
                 explanation_prompt = f"""
-                The applicant has the following details:
+                This applicant was denied a HELOC loan.
                 - External Risk Estimate: {user_input['ExternalRiskEstimate']}
                 - Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
                 - Maximum Delinquency Severity: {user_input['MaxDelqEver']}
                 - Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
                 - Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
-                
-                Provide financial insights based on these factors.
+
+                Based on these factors, provide possible reasons for rejection and actionable suggestions to improve eligibility.
                 """
+
+            # Get GPT Explanation if API key is provided
+            if api_key:
+                client = openai.OpenAI(api_key=api_key)
                 try:
-                    client = openai.OpenAI(api_key=api_key)
                     response = client.chat.completions.create(
                         model="gpt-4",
                         messages=[{"role": "user", "content": explanation_prompt}]
@@ -87,54 +122,32 @@ with tab2:
 
     # Sidebar Filters
     st.sidebar.header("📊 Filter Data")
-    min_credit = st.sidebar.slider("Min External Risk Estimate", int(data['ExternalRiskEstimate'].min()), int(data['ExternalRiskEstimate'].max()), 50)
-    delinquency_filter = st.sidebar.slider("Max Months Since Delinquency", int(data['MSinceMostRecentDelq'].min()), int(data['MSinceMostRecentDelq'].max()), 50)
+    min_credit = st.sidebar.slider("Min External Risk Estimate", int(full_data['ExternalRiskEstimate'].min()), int(full_data['ExternalRiskEstimate'].max()), 50)
+    delinquency_filter = st.sidebar.slider("Max Months Since Delinquency", int(full_data['MSinceMostRecentDelq'].min()), int(full_data['MSinceMostRecentDelq'].max()), 50)
 
     # Filter dataset based on user selections
-    filtered_data = data[
-        (data['ExternalRiskEstimate'] >= min_credit) &
-        (data['MSinceMostRecentDelq'] <= delinquency_filter)
+    filtered_data = full_data[
+        (full_data['ExternalRiskEstimate'] >= min_credit) &
+        (full_data['MSinceMostRecentDelq'] <= delinquency_filter)
     ]
 
-    # Layout: Two Columns for Visualizations
-    col1, col2 = st.columns(2)
+    # Show Dataset Preview
+    st.write("📋 Filtered HELOC Data")
+    st.dataframe(filtered_data)
 
-    # First Visualization: Approval Rate Distribution
-    with col1:
-        st.subheader("📊 Approval Rate Distribution")
-        fig, ax = plt.subplots()
-        sns.histplot(filtered_data['ExternalRiskEstimate'], bins=20, kde=True, ax=ax, color="blue")
-        ax.set_xlabel("Credit Score (External Risk Estimate)")
-        ax.set_ylabel("Frequency")
-        ax.set_title("HELOC Approvals vs. Credit Score")
-        st.pyplot(fig)
-
-    # Second Visualization: Delinquency Impact
-    with col2:
-        st.subheader("📉 Delinquency vs. Approval Rate")
-        fig, ax = plt.subplots()
-        sns.boxplot(x=filtered_data['MSinceMostRecentDelq'], y=filtered_data['PercentTradesNeverDelq'], ax=ax, palette="coolwarm")
-        ax.set_xlabel("Months Since Most Recent Delinquency")
-        ax.set_ylabel("Percentage of Non-Delinquent Trades")
-        ax.set_title("Impact of Delinquency on Approval")
-        st.pyplot(fig)
-
-    # AI-Generated Insights Section
+    # AI Chat Feature for Additional Analysis
     if api_key:
-        st.write("🧠 **AI-Generated Insights on HELOC Data**")
-        analysis_prompt = f"""
-        The dataset contains information on HELOC applicants.
-        - The distribution of external risk estimate (credit scores) vs approval rate is shown.
-        - The impact of delinquency history on approval rates is visualized.
-        
-        Generate insights on how these factors influence HELOC approvals.
-        """
-        try:
-            client = openai.OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": analysis_prompt}]
-            )
-            st.write(response.choices[0].message.content)
-        except Exception as e:
-            st.error(f"⚠️ OpenAI API Error: {str(e)}")
+        st.write("💬 **Ask AI for Insights on the Data**")
+        user_question = st.text_area("❓ Ask anything about the HELOC dataset:")
+
+        if st.button("🤖 Get AI Response"):
+            try:
+                client = openai.OpenAI(api_key=api_key)
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": user_question}]
+                )
+                st.write("💬 **AI Response:**")
+                st.write(response.choices[0].message.content)
+            except Exception as e:
+                st.error(f"⚠️ OpenAI API Error: {str(e)}")
