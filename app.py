@@ -4,9 +4,9 @@ import openai
 import pandas as pd
 import xgboost as xgb
 import numpy as np
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from imblearn.over_sampling import SMOTE
-from collections import Counter
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 # Load the trained model (Booster object)
 model = joblib.load('ML_Model FINAL.pkl')  # Ensure correct path
@@ -39,7 +39,7 @@ def load_heloc_data():
     selected_features = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
                          'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
 
-    return df[selected_features], df  # Return both the selected features and full dataset
+    return df[selected_features], df  # Return both selected features and full dataset
 
 heloc_data, full_data = load_heloc_data()
 
@@ -131,9 +131,20 @@ with tab2:
         (full_data['MSinceMostRecentDelq'] <= delinquency_filter)
     ]
 
-    # Show Dataset Preview
-    st.write("📋 Filtered HELOC Data")
-    st.dataframe(filtered_data)
+    # KPIs
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📈 Approval Rate", f"{(full_data['RiskPerformance'].value_counts(normalize=True).get('Good', 0) * 100):.2f}%")
+    with col2:
+        st.metric("💳 Avg. Credit Score", f"{full_data['ExternalRiskEstimate'].mean():.1f}")
+    with col3:
+        st.metric("⚠️ Default Rate", f"{(full_data['RiskPerformance'].value_counts(normalize=True).get('Bad', 0) * 100):.2f}%")
+
+    # **Credit Score Distribution**
+    st.subheader("📊 Credit Score Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(filtered_data["ExternalRiskEstimate"], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
 
     # AI Chat Feature for Additional Analysis
     if api_key:
