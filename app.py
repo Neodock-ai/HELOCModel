@@ -89,8 +89,32 @@ with tab1:
             # Show results
             if prediction == 1:
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
+                explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
+                explanation_prompt = f"""
+                This applicant was denied a HELOC loan.
+                - External Risk Estimate: {user_input['ExternalRiskEstimate']}
+                - Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
+                - Maximum Delinquency Severity: {user_input['MaxDelqEver']}
+                - Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
+                - Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
+
+                Based on these factors, provide possible reasons for rejection and actionable suggestions to improve eligibility.
+                """
+
+            # Get GPT Explanation if API key is provided
+            if api_key:
+                client = openai.OpenAI(api_key=api_key)
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[{"role": "user", "content": explanation_prompt}]
+                    )
+                    st.write("💡 **AI Financial Insights:**")
+                    st.write(response.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"⚠️ OpenAI API Error: {str(e)}")
 
         except Exception as e:
             st.error(f"⚠️ Model Prediction Error: {str(e)}")
@@ -117,18 +141,6 @@ with tab2:
         sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
         ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
         ax.legend()
-        st.pyplot(fig)
-
-        # **Approval Rate Comparison**
-        st.subheader("📊 Loan Approval Rate Based on Your Input")
-        approval_rate = full_data[(full_data["ExternalRiskEstimate"] >= user_input['ExternalRiskEstimate']) & 
-                                  (full_data["MSinceMostRecentDelq"] <= user_input['MSinceMostRecentDelq'])]["RiskPerformance"].value_counts(normalize=True) * 100
-
-        fig, ax = plt.subplots()
-        sns.barplot(x=approval_rate.index, y=approval_rate.values, palette="coolwarm", ax=ax)
-        ax.set_ylabel("Approval Rate (%)")
-        ax.set_xlabel("Risk Performance")
-        ax.set_title("Loan Approval Rate Based on Input")
         st.pyplot(fig)
 
     else:
