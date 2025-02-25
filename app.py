@@ -4,7 +4,6 @@ import openai
 import pandas as pd
 import xgboost as xgb
 import numpy as np
-import shap
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
@@ -118,20 +117,6 @@ with tab2:
     ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
     ax.legend()
     st.pyplot(fig)
-
-    # SHAP Explanation for Feature Impact
-    st.subheader("🔍 Feature Impact (SHAP Analysis)")
-
-    # SHAP Explainer
-    explainer = shap.Explainer(model)
-    shap_values = explainer(input_data)
-
-    # SHAP Force Plot
-    shap_fig, ax = plt.subplots(figsize=(8, 3))
-    shap.waterfall_plot(shap.Explanation(values=shap_values.values[0], 
-                                         base_values=shap_values.base_values[0], 
-                                         data=input_data.iloc[0]), max_display=5)
-    st.pyplot(shap_fig)
 
     # AI Chat Feature for Dashboard Insights
     if api_key:
