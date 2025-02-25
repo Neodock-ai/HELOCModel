@@ -8,3 +8,4 @@ imblearn
 matplotlib
 seaborn
 openai
+shap
