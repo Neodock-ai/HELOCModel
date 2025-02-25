@@ -1,7 +1,10 @@
 streamlit
-matplotlib
-seaborn
+joblib
 pandas
 xgboost
+numpy
+scikit-learn
+imblearn
+matplotlib
+seaborn
 openai
-joblib
