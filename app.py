@@ -43,6 +43,10 @@ def load_heloc_data():
 
 heloc_data, full_data = load_heloc_data()
 
+# **Initialize global variables**
+probability = None  
+user_input = None  
+
 # Streamlit UI with Tabs
 tab1, tab2 = st.tabs(["📊 HELOC Predictor", "📈 Dashboard"])
 
@@ -88,10 +92,6 @@ with tab1:
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
 
-            # Store user input with prediction for dashboard usage
-            user_result = user_input.copy()
-            user_result['Prediction'] = "Eligible" if prediction == 1 else "Not Eligible"
-
         except Exception as e:
             st.error(f"⚠️ Model Prediction Error: {str(e)}")
 
@@ -100,52 +100,39 @@ with tab2:
     st.title("📈 Personalized HELOC Insights Dashboard")
     st.write("🔍 Explore insights based on your entered data.")
 
-    # **DYNAMIC KPIs** based on user input
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📈 Approval Probability", f"{probability:.2%}")
-    with col2:
-        st.metric("💳 Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
-    with col3:
-        st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
+    if probability is not None:
+        # **DYNAMIC KPIs** based on user input
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📈 Approval Probability", f"{probability:.2%}")
+        with col2:
+            st.metric("💳 Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
+        with col3:
+            st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
 
-    # **Visualizing User Input Compared to Historical Data**
-    st.subheader("📊 Your Input vs. HELOC Trends")
+        # **Visualizing User Input Compared to Historical Data**
+        st.subheader("📊 Your Input vs. HELOC Trends")
 
-    fig, ax = plt.subplots(figsize=(6, 3))
-    sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
-    ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
-    ax.legend()
-    st.pyplot(fig)
+        fig, ax = plt.subplots(figsize=(6, 3))
+        sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
+        ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
+        ax.legend()
+        st.pyplot(fig)
 
-    # **Approval Rate Comparison**
-    st.subheader("📊 Loan Approval Rate Based on Your Input")
-    approval_rate = full_data[(full_data["ExternalRiskEstimate"] >= user_input['ExternalRiskEstimate']) & 
-                              (full_data["MSinceMostRecentDelq"] <= user_input['MSinceMostRecentDelq'])]["RiskPerformance"].value_counts(normalize=True) * 100
+        # **Approval Rate Comparison**
+        st.subheader("📊 Loan Approval Rate Based on Your Input")
+        approval_rate = full_data[(full_data["ExternalRiskEstimate"] >= user_input['ExternalRiskEstimate']) & 
+                                  (full_data["MSinceMostRecentDelq"] <= user_input['MSinceMostRecentDelq'])]["RiskPerformance"].value_counts(normalize=True) * 100
 
-    fig, ax = plt.subplots()
-    sns.barplot(x=approval_rate.index, y=approval_rate.values, palette="coolwarm", ax=ax)
-    ax.set_ylabel("Approval Rate (%)")
-    ax.set_xlabel("Risk Performance")
-    ax.set_title("Loan Approval Rate Based on Input")
-    st.pyplot(fig)
+        fig, ax = plt.subplots()
+        sns.barplot(x=approval_rate.index, y=approval_rate.values, palette="coolwarm", ax=ax)
+        ax.set_ylabel("Approval Rate (%)")
+        ax.set_xlabel("Risk Performance")
+        ax.set_title("Loan Approval Rate Based on Input")
+        st.pyplot(fig)
 
-    # **Default Rate by Credit Score**
-    st.subheader("📊 Credit Score & Default Rate")
-    fig, ax = plt.subplots()
-    sns.boxplot(data=full_data, x="RiskPerformance", y="ExternalRiskEstimate", palette="coolwarm", ax=ax)
-    ax.set_title("Credit Score Distribution by Loan Outcome")
-    st.pyplot(fig)
-
-    # **Delinquency vs Approval Rate**
-    st.subheader("📊 Delinquency & Approval Rate")
-    delinquency_approval = full_data.groupby("MSinceMostRecentDelq")["RiskPerformance"].value_counts(normalize=True).unstack() * 100
-    fig, ax = plt.subplots()
-    delinquency_approval.plot(kind="line", ax=ax, marker="o")
-    ax.set_xlabel("Months Since Most Recent Delinquency")
-    ax.set_ylabel("Approval Rate (%)")
-    ax.set_title("Delinquency Impact on Loan Approval")
-    st.pyplot(fig)
+    else:
+        st.warning("⚠️ No prediction made yet. Enter details in the HELOC Predictor tab and check eligibility.")
 
     # AI Chat Feature for Dashboard Insights
     if api_key:
