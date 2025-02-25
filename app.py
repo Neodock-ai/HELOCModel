@@ -4,6 +4,7 @@ import openai
 import pandas as pd
 import xgboost as xgb
 import numpy as np
+import shap
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
@@ -105,7 +106,7 @@ with tab2:
     with col1:
         st.metric("📈 Approval Probability", f"{probability:.2%}")
     with col2:
-        st.metric("💳 Credit Score", f"{user_input['ExternalRiskEstimate']}")
+        st.metric("💳 Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
     with col3:
         st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
 
@@ -113,29 +114,24 @@ with tab2:
     st.subheader("📊 Your Input vs. HELOC Trends")
 
     fig, ax = plt.subplots(figsize=(6, 3))
-    sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Overall Data", ax=ax)
+    sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
     ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
     ax.legend()
     st.pyplot(fig)
 
-    # Boxplot for Delinquency Comparison
-    fig, ax = plt.subplots(figsize=(6, 3))
-    sns.boxplot(y=full_data["MSinceMostRecentDelq"], ax=ax, color="lightblue")
-    ax.axhline(user_input['MSinceMostRecentDelq'], color='red', linestyle='--', label="Your Delinquency")
-    ax.legend()
-    st.pyplot(fig)
+    # SHAP Explanation for Feature Impact
+    st.subheader("🔍 Feature Impact (SHAP Analysis)")
 
-    # **Risk Factor Comparison**
-    st.subheader("⚖️ Risk Factor Analysis")
-    feature_importance = {
-        'Credit Score Impact': user_input['ExternalRiskEstimate'] * 0.5,
-        'Delinquency Impact': user_input['MSinceMostRecentDelq'] * 0.3,
-        'Max Delinquency Severity': user_input['MaxDelqEver'] * 0.2,
-    }
+    # SHAP Explainer
+    explainer = shap.Explainer(model)
+    shap_values = explainer(input_data)
 
-    fig, ax = plt.subplots(figsize=(6, 3))
-    sns.barplot(x=list(feature_importance.values()), y=list(feature_importance.keys()), palette="Blues_r", ax=ax)
-    st.pyplot(fig)
+    # SHAP Force Plot
+    shap_fig, ax = plt.subplots(figsize=(8, 3))
+    shap.waterfall_plot(shap.Explanation(values=shap_values.values[0], 
+                                         base_values=shap_values.base_values[0], 
+                                         data=input_data.iloc[0]), max_display=5)
+    st.pyplot(shap_fig)
 
     # AI Chat Feature for Dashboard Insights
     if api_key:
