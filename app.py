@@ -8,13 +8,65 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
-# Load the trained model (Booster object)
-model = joblib.load('ML_Model FINAL.pkl')  # Ensure correct path
+# Custom Styling for Dark Mode & Background
+st.markdown("""
+    <style>
+    /* Background Image */
+    .stApp {
+        background: url('https://source.unsplash.com/1600x900/?finance,technology') no-repeat center fixed;
+        background-size: cover;
+    }
 
-# Load and preprocess the HELOC dataset for the dashboard
+    /* Title Styling */
+    h1 {
+        color: #ffffff;
+        text-align: center;
+    }
+
+    /* Sidebar Styling */
+    .css-1d391kg {
+        background-color: rgba(30, 30, 30, 0.8) !important;
+    }
+
+    /* Custom Buttons */
+    .stButton>button {
+        border-radius: 10px;
+        border: 2px solid #ffffff;
+        background-color: #007bff;
+        color: white;
+        font-size: 16px;
+        padding: 10px;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #0056b3;
+        border: 2px solid #ffffff;
+    }
+
+    /* Custom Metrics */
+    div[data-testid="metric-container"] {
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 8px;
+        color: white !important;
+        text-align: center;
+    }
+
+    /* Input Sliders */
+    .stSlider>div>div>div {
+        background-color: #007bff !important;
+    }
+
+    </style>
+""", unsafe_allow_html=True)
+
+# Load the trained model (Booster object)
+model = joblib.load('ML_Model FINAL.pkl')
+
+# Load and preprocess the HELOC dataset
 @st.cache_resource
 def load_heloc_data():
-    df = pd.read_csv("heloc_dataset_v1.csv")  # Ensure correct path
+    df = pd.read_csv("heloc_dataset_v1.csv")
 
     # Remove rows with missing values (-9)
     df = df[~df.isin([-9]).any(axis=1)]
@@ -31,15 +83,12 @@ def load_heloc_data():
         return row
 
     df = df.apply(impute_with_group_mean, axis=1)
-
-    # Remove duplicate rows
     df = df.drop_duplicates()
 
-    # Select only necessary columns
-    selected_features = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
+    selected_features = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate',
                          'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days', 'RiskPerformance']
 
-    return df[selected_features], df  # Return both selected features and full dataset
+    return df[selected_features], df  # Return selected features & full dataset
 
 heloc_data, full_data = load_heloc_data()
 
@@ -60,8 +109,7 @@ with tab1:
     # API Key Input (hidden for privacy)
     api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
 
-    # Define input fields (only 5 selected features)
-    feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
+    feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate',
                      'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
 
     user_input = {
@@ -72,28 +120,19 @@ with tab1:
         'MSinceMostRecentInqexcl7days': st.slider("🔍 Months Since Most Recent Inquiry (Excluding Last 7 Days)", 0, 100, 10)
     }
 
-    # Convert user input into DataFrame
     input_data = pd.DataFrame([user_input])[feature_order]
 
-    # Predict eligibility
     if st.button("📌 Check Eligibility"):
         try:
-            # Convert input data to DMatrix
             input_dmatrix = xgb.DMatrix(input_data)
-
-            # Get probability score from the model
             probability = model.predict(input_dmatrix)[0]
-
-            # Convert probability into a binary classification
-            threshold = 0.5  # Adjust if needed
+            threshold = 0.5  
             prediction = "Eligible" if probability >= threshold else "Not Eligible"
 
-            # **Store results in session state**
             st.session_state.probability = probability
             st.session_state.prediction = prediction
             st.session_state.user_input = user_input
 
-            # Show results
             if prediction == "Eligible":
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
                 explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
@@ -106,11 +145,8 @@ with tab1:
                 - Maximum Delinquency Severity: {user_input['MaxDelqEver']}
                 - Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
                 - Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
-
-                Based on these factors, provide possible reasons for rejection and actionable suggestions to improve eligibility.
                 """
 
-            # Get GPT Explanation if API key is provided
             if api_key:
                 client = openai.OpenAI(api_key=api_key)
                 try:
@@ -132,9 +168,8 @@ with tab2:
     st.write("🔍 Explore insights based on your entered data.")
 
     if st.session_state.probability is not None:
-        user_input = st.session_state.user_input  # Retrieve stored input
+        user_input = st.session_state.user_input
 
-        # **DYNAMIC KPIs** based on user input
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("📈 Approval Probability", f"{st.session_state.probability:.2%}")
@@ -143,9 +178,7 @@ with tab2:
         with col3:
             st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
 
-        # **User Input vs Dataset Trends**
         st.subheader("📊 Your Credit Score vs Dataset Distribution")
-
         fig, ax = plt.subplots(figsize=(6, 3))
         sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
         ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
@@ -155,19 +188,15 @@ with tab2:
     else:
         st.warning("⚠️ No prediction made yet. Enter details in the HELOC Predictor tab and check eligibility.")
 
-    # AI Chat Feature for Dashboard Insights
     if api_key:
         st.write("💬 **Ask AI for Insights on Your Data**")
         user_question = st.text_area("❓ Ask anything about your HELOC eligibility:")
 
         if st.button("🤖 Get AI Response"):
-            try:
-                client = openai.OpenAI(api_key=api_key)
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": f"Based on the user's inputs: {st.session_state.user_input}, {user_question}"}]
-                )
-                st.write("💬 **AI Response:**")
-                st.write(response.choices[0].message.content)
-            except Exception as e:
-                st.error(f"⚠️ OpenAI API Error: {str(e)}")
+            client = openai.OpenAI(api_key=api_key)
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": f"User inputs: {st.session_state.user_input}, {user_question}"}]
+            )
+            st.write("💬 **AI Response:**")
+            st.write(response.choices[0].message.content)
