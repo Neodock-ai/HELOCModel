@@ -37,7 +37,7 @@ def load_heloc_data():
 
     # Select only necessary columns
     selected_features = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate', 
-                         'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
+                         'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days', 'RiskPerformance']
 
     return df[selected_features], df  # Return both selected features and full dataset
 
@@ -85,71 +85,62 @@ with tab1:
             # Show results
             if prediction == 1:
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
-                explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
-                explanation_prompt = f"""
-                This applicant was denied a HELOC loan.
-                - External Risk Estimate: {user_input['ExternalRiskEstimate']}
-                - Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
-                - Maximum Delinquency Severity: {user_input['MaxDelqEver']}
-                - Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
-                - Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
 
-                Based on these factors, provide possible reasons for rejection and actionable suggestions to improve eligibility.
-                """
-
-            # Get GPT Explanation if API key is provided
-            if api_key:
-                client = openai.OpenAI(api_key=api_key)
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4",
-                        messages=[{"role": "user", "content": explanation_prompt}]
-                    )
-                    st.write("💡 **AI Financial Insights:**")
-                    st.write(response.choices[0].message.content)
-                except Exception as e:
-                    st.error(f"⚠️ OpenAI API Error: {str(e)}")
+            # Store user input with prediction for dashboard usage
+            user_result = user_input.copy()
+            user_result['Prediction'] = "Eligible" if prediction == 1 else "Not Eligible"
 
         except Exception as e:
             st.error(f"⚠️ Model Prediction Error: {str(e)}")
 
-# -----------------------  TAB 2: DASHBOARD -----------------------
+# -----------------------  TAB 2: DASHBOARD (DYNAMIC INSIGHTS) -----------------------
 with tab2:
-    st.title("📈 HELOC Data Dashboard")
-    st.write("🔍 Explore HELOC applicant data and analyze trends.")
+    st.title("📈 Personalized HELOC Insights Dashboard")
+    st.write("🔍 Explore insights based on your entered data.")
 
-    # Sidebar Filters
-    st.sidebar.header("📊 Filter Data")
-    min_credit = st.sidebar.slider("Min External Risk Estimate", int(full_data['ExternalRiskEstimate'].min()), int(full_data['ExternalRiskEstimate'].max()), 50)
-    delinquency_filter = st.sidebar.slider("Max Months Since Delinquency", int(full_data['MSinceMostRecentDelq'].min()), int(full_data['MSinceMostRecentDelq'].max()), 50)
-
-    # Filter dataset based on user selections
-    filtered_data = full_data[
-        (full_data['ExternalRiskEstimate'] >= min_credit) &
-        (full_data['MSinceMostRecentDelq'] <= delinquency_filter)
-    ]
-
-    # KPIs
+    # **DYNAMIC KPIs** based on user input
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("📈 Approval Rate", f"{(full_data['RiskPerformance'].value_counts(normalize=True).get('Good', 0) * 100):.2f}%")
+        st.metric("📈 Approval Probability", f"{probability:.2%}")
     with col2:
-        st.metric("💳 Avg. Credit Score", f"{full_data['ExternalRiskEstimate'].mean():.1f}")
+        st.metric("💳 Credit Score", f"{user_input['ExternalRiskEstimate']}")
     with col3:
-        st.metric("⚠️ Default Rate", f"{(full_data['RiskPerformance'].value_counts(normalize=True).get('Bad', 0) * 100):.2f}%")
+        st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
 
-    # **Credit Score Distribution**
-    st.subheader("📊 Credit Score Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(filtered_data["ExternalRiskEstimate"], bins=20, kde=True, ax=ax)
+    # **Visualizing User Input Compared to Historical Data**
+    st.subheader("📊 Your Input vs. HELOC Trends")
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Overall Data", ax=ax)
+    ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
+    ax.legend()
     st.pyplot(fig)
 
-    # AI Chat Feature for Additional Analysis
+    # Boxplot for Delinquency Comparison
+    fig, ax = plt.subplots(figsize=(6, 3))
+    sns.boxplot(y=full_data["MSinceMostRecentDelq"], ax=ax, color="lightblue")
+    ax.axhline(user_input['MSinceMostRecentDelq'], color='red', linestyle='--', label="Your Delinquency")
+    ax.legend()
+    st.pyplot(fig)
+
+    # **Risk Factor Comparison**
+    st.subheader("⚖️ Risk Factor Analysis")
+    feature_importance = {
+        'Credit Score Impact': user_input['ExternalRiskEstimate'] * 0.5,
+        'Delinquency Impact': user_input['MSinceMostRecentDelq'] * 0.3,
+        'Max Delinquency Severity': user_input['MaxDelqEver'] * 0.2,
+    }
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    sns.barplot(x=list(feature_importance.values()), y=list(feature_importance.keys()), palette="Blues_r", ax=ax)
+    st.pyplot(fig)
+
+    # AI Chat Feature for Dashboard Insights
     if api_key:
-        st.write("💬 **Ask AI for Insights on the Data**")
-        user_question = st.text_area("❓ Ask anything about the HELOC dataset:")
+        st.write("💬 **Ask AI for Insights on Your Data**")
+        user_question = st.text_area("❓ Ask anything about your HELOC eligibility:")
 
         if st.button("🤖 Get AI Response"):
             try:
