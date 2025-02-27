@@ -139,14 +139,15 @@ with tab1:
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
                 explanation_prompt = f"""
-                This applicant was denied a HELOC loan.
-                - External Risk Estimate: {user_input['ExternalRiskEstimate']}
-                - Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
-                - Maximum Delinquency Severity: {user_input['MaxDelqEver']}
-                - Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
-                - Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
+This applicant was denied a HELOC loan.
+- External Risk Estimate: {user_input['ExternalRiskEstimate']}
+- Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
+- Maximum Delinquency Severity: {user_input['MaxDelqEver']}
+- Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
+- Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
                 """
 
+            # Provide feedback regardless of OpenAI API access
             if api_key:
                 client = openai.OpenAI(api_key=api_key)
                 try:
@@ -158,6 +159,11 @@ with tab1:
                     st.write(response.choices[0].message.content)
                 except Exception as e:
                     st.error(f"⚠️ OpenAI API Error: {str(e)}")
+                    st.info("💡 **Default Feedback:**")
+                    st.write(explanation_prompt)
+            else:
+                st.info("💡 **Default Feedback:**")
+                st.write(explanation_prompt)
 
         except Exception as e:
             st.error(f"⚠️ Model Prediction Error: {str(e)}")
@@ -185,6 +191,31 @@ with tab2:
         ax.legend()
         st.pyplot(fig)
 
+        # ------------------ Additional Graphs and Analysis ------------------
+        st.subheader("Correlation Heatmap of Financial Metrics")
+        fig2, ax2 = plt.subplots(figsize=(8, 6))
+        corr = full_data.corr()
+        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
+        st.pyplot(fig2)
+
+        st.subheader("Credit Score vs. Non-Delinquent Trades")
+        fig3, ax3 = plt.subplots(figsize=(8, 6))
+        sns.scatterplot(x="ExternalRiskEstimate", y="PercentTradesNeverDelq", hue="RiskPerformance", data=full_data, ax=ax3)
+        ax3.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Credit Score")
+        ax3.legend()
+        st.pyplot(fig3)
+
+        st.subheader("Boxplot: Credit Score Distribution by Risk Performance")
+        fig4, ax4 = plt.subplots(figsize=(8, 6))
+        sns.boxplot(x="RiskPerformance", y="ExternalRiskEstimate", data=full_data, ax=ax4)
+        st.pyplot(fig4)
+
+        st.subheader("Distribution: Months Since Most Recent Delinquency")
+        fig5, ax5 = plt.subplots(figsize=(8, 6))
+        sns.histplot(full_data["MSinceMostRecentDelq"], bins=20, kde=True, ax=ax5)
+        ax5.axvline(user_input['MSinceMostRecentDelq'], color='red', linestyle='--', label="Your Value")
+        ax5.legend()
+        st.pyplot(fig5)
     else:
         st.warning("⚠️ No prediction made yet. Enter details in the HELOC Predictor tab and check eligibility.")
 
