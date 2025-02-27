@@ -106,7 +106,7 @@ with tab1:
     st.write("📊 Enter your financial details to check HELOC eligibility.")
 
     # API Key Input (hidden for privacy)
-    api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
+    api_key = st.text_input("🔑 Enter your OpenAI API Key (Optional)", type="password")
 
     feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate',
                      'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
@@ -132,48 +132,57 @@ with tab1:
             st.session_state.prediction = prediction
             st.session_state.user_input = user_input
 
+            # Display clear colored outcome messages
+            if prediction == "Eligible":
+                st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
+            else:
+                st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
+
             # Detailed default feedback messages with actionable insights
             if prediction == "Eligible":
                 default_feedback = f"""
-Your financial profile indicates eligibility for a HELOC with an approval probability of **{probability:.2%}**.
+**Outcome:** Eligible for HELOC  
+Your approval probability is **{probability:.2%}**.
 
-**Key Observations:**
-- **Credit Health:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}** – a strong indicator.
-- **Delinquency Record:** You have gone **{user_input['MSinceMostRecentDelq']}** months since your last delinquency with a maximum severity of **{user_input['MaxDelqEver']}**.
-- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades have never been delinquent.
-- **Recent Inquiries:** Your credit inquiry history (last **{user_input['MSinceMostRecentInqexcl7days']}** months) is healthy.
+**Observations:**  
+- **Credit Health:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**, which is a strong indicator.  
+- **Delinquency:** You have had no recent delinquencies (last **{user_input['MSinceMostRecentDelq']}** months) with a maximum severity of **{user_input['MaxDelqEver']}**.  
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades have never been delinquent.  
+- **Inquiries:** Your recent credit inquiry history (past **{user_input['MSinceMostRecentInqexcl7days']}** months) is healthy.
 
-**Advice:** Keep up your good financial habits and monitor your credit regularly. Staying on top of your payments and avoiding new delinquencies will help maintain your eligibility.
+**Advice:** Continue maintaining your good credit habits. Regular monitoring and prompt payment will help you keep your eligibility intact.
 """
             else:
                 default_feedback = f"""
-Based on your current financial inputs, your HELOC approval probability is **{probability:.2%}**, and you are currently **not eligible** for a HELOC.
+**Outcome:** Not Eligible for HELOC  
+Your approval probability is **{probability:.2%}**.
 
-**Key Observations:**
-- **Credit Score:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}** which might be below typical thresholds.
-- **Delinquency Record:** You have gone **{user_input['MSinceMostRecentDelq']}** months since your last delinquency, with a severity level of **{user_input['MaxDelqEver']}**.
-- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades show no delinquency, which is a positive note.
-- **Recent Inquiries:** Your record shows **{user_input['MSinceMostRecentInqexcl7days']}** months since your last inquiry, which also factors into your profile.
+**Observations:**  
+- **Credit Score:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**, which may be below the desired threshold.  
+- **Delinquency:** It has been **{user_input['MSinceMostRecentDelq']}** months since your last delinquency, with a severity level of **{user_input['MaxDelqEver']}**.  
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades are free from delinquency, which is a positive sign.  
+- **Inquiries:** Your record shows **{user_input['MSinceMostRecentInqexcl7days']}** months since your last inquiry.
 
-**Advice:** Consider improving your credit score by addressing past delinquencies and reducing new inquiries. Working with a financial advisor to develop a targeted credit improvement plan could be beneficial.
+**Advice:** Consider improving your credit by addressing past delinquencies and reducing new credit inquiries. Consulting with a financial advisor might help create a tailored improvement plan.
 """
 
-            # Provide feedback via AI if available, otherwise use default feedback
+            # Fetch AI-enhanced feedback if API key is provided
             if api_key:
-                client = openai.OpenAI(api_key=api_key)
                 try:
+                    client = openai.OpenAI(api_key=api_key)
                     response = client.chat.completions.create(
                         model="gpt-4",
                         messages=[{"role": "user", "content": default_feedback}]
                     )
-                    st.write("💡 **AI Financial Insights:**")
-                    st.write(response.choices[0].message.content)
+                    ai_feedback = response.choices[0].message.content
+                    st.markdown("### 💡 AI Financial Insights")
+                    st.write(ai_feedback)
                 except Exception as e:
                     st.error(f"⚠️ OpenAI API Error: {str(e)}")
-                    st.info("💡 **Default Feedback:**")
+                    st.markdown("### 📋 Default Financial Feedback")
                     st.write(default_feedback)
             else:
-                st.info("💡 **Default Feedback:**")
+                st.markdown("### 📋 Default Financial Feedback")
                 st.write(default_feedback)
 
         except Exception as e:
@@ -193,7 +202,7 @@ with tab2:
         with col1:
             st.metric("Approval Probability", f"{st.session_state.probability:.2%}")
         with col2:
-            st.metric("Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
+            st.metric("Credit Score", f"{user_input['ExternalRiskEstimate']}")
         with col3:
             st.metric("Delinquency (Months)", f"{user_input['MSinceMostRecentDelq']}")
         with col4:
@@ -260,13 +269,16 @@ with tab2:
         st.warning("⚠️ No prediction made yet. Enter your details in the HELOC Predictor tab and check eligibility.")
 
     if api_key:
-        st.write("💬 **Ask AI for Insights on Your Data**")
+        st.markdown("### 💬 Ask AI for Additional Insights")
         user_question = st.text_area("❓ Ask anything about your HELOC eligibility:")
         if st.button("🤖 Get AI Response"):
-            client = openai.OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": f"User inputs: {st.session_state.user_input}, {user_question}"}]
-            )
-            st.write("💬 **AI Response:**")
-            st.write(response.choices[0].message.content)
+            try:
+                client = openai.OpenAI(api_key=api_key)
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": f"User inputs: {st.session_state.user_input}, {user_question}"}]
+                )
+                st.markdown("#### 💬 AI Response:")
+                st.write(response.choices[0].message.content)
+            except Exception as e:
+                st.error(f"⚠️ OpenAI API Error: {str(e)}")
