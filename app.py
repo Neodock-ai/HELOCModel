@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
-# Custom Styling for Dark Mode & Background
+# Custom Styling for Dark Mode & Enhanced UI
 st.markdown("""
     <style>
     /* Background Image */
@@ -16,45 +16,48 @@ st.markdown("""
         background: url('https://source.unsplash.com/1600x900/?finance,technology') no-repeat center fixed;
         background-size: cover;
     }
-
+    
     /* Title Styling */
     h1 {
         color: #ffffff;
         text-align: center;
     }
-
+    
     /* Sidebar Styling */
     .css-1d391kg {
         background-color: rgba(30, 30, 30, 0.8) !important;
     }
-
-    /* Custom Buttons */
+    
+    /* Custom Buttons with Unique Graphics */
     .stButton>button {
         border-radius: 10px;
-        border: 2px solid #ffffff;
-        background-color: #007bff;
+        border: none;
+        background: linear-gradient(45deg, #0077b6, #00b4d8);
         color: white;
         font-size: 16px;
-        padding: 10px;
-        transition: 0.3s;
+        padding: 10px 20px;
+        transition: transform 0.2s, background 0.2s;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     }
     .stButton>button:hover {
-        background-color: #0056b3;
-        border: 2px solid #ffffff;
+        transform: scale(1.05);
+        background: linear-gradient(45deg, #005f87, #0088a7);
     }
-
-    /* Custom Metrics */
+    
+    /* KPI Card Styling for st.metric */
     div[data-testid="metric-container"] {
-        background-color: rgba(0, 0, 0, 0.5);
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
         padding: 10px;
-        border-radius: 8px;
-        color: white !important;
+        border-radius: 10px;
+        color: #102a43 !important;
         text-align: center;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        font-weight: bold;
     }
-
+    
     /* Input Sliders */
     .stSlider>div>div>div {
-        background-color: #007bff !important;
+        background-color: #0077b6 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -105,7 +108,7 @@ with tab1:
     st.title("🏦 HELOC Eligibility Predictor")
     st.write("📊 Enter your financial details to check HELOC eligibility.")
 
-    # API Key Input (hidden for privacy)
+    # API Key Input (Optional)
     api_key = st.text_input("🔑 Enter your OpenAI API Key (Optional)", type="password")
 
     feature_order = ['MSinceMostRecentDelq', 'MaxDelqEver', 'ExternalRiskEstimate',
@@ -132,25 +135,25 @@ with tab1:
             st.session_state.prediction = prediction
             st.session_state.user_input = user_input
 
-            # Display clear colored outcome messages
+            # Clear outcome messaging with distinct colors
             if prediction == "Eligible":
                 st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
             else:
                 st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
 
-            # Detailed default feedback messages with actionable insights
+            # Detailed default feedback with actionable insights
             if prediction == "Eligible":
                 default_feedback = f"""
 **Outcome:** Eligible for HELOC  
 Your approval probability is **{probability:.2%}**.
 
 **Observations:**  
-- **Credit Health:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**, which is a strong indicator.  
-- **Delinquency:** You have had no recent delinquencies (last **{user_input['MSinceMostRecentDelq']}** months) with a maximum severity of **{user_input['MaxDelqEver']}**.  
-- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades have never been delinquent.  
-- **Inquiries:** Your recent credit inquiry history (past **{user_input['MSinceMostRecentInqexcl7days']}** months) is healthy.
+- **Credit Health:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**.
+- **Delinquency:** You have been delinquency-free for **{user_input['MSinceMostRecentDelq']}** months with a maximum severity of **{user_input['MaxDelqEver']}**.
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades have never been delinquent.
+- **Inquiries:** Your credit inquiry history (past **{user_input['MSinceMostRecentInqexcl7days']}** months) is healthy.
 
-**Advice:** Continue maintaining your good credit habits. Regular monitoring and prompt payment will help you keep your eligibility intact.
+**Advice:** Continue your positive credit practices and maintain regular monitoring.
 """
             else:
                 default_feedback = f"""
@@ -158,15 +161,15 @@ Your approval probability is **{probability:.2%}**.
 Your approval probability is **{probability:.2%}**.
 
 **Observations:**  
-- **Credit Score:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**, which may be below the desired threshold.  
-- **Delinquency:** It has been **{user_input['MSinceMostRecentDelq']}** months since your last delinquency, with a severity level of **{user_input['MaxDelqEver']}**.  
-- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades are free from delinquency, which is a positive sign.  
-- **Inquiries:** Your record shows **{user_input['MSinceMostRecentInqexcl7days']}** months since your last inquiry.
+- **Credit Score:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}**.
+- **Delinquency:** It has been **{user_input['MSinceMostRecentDelq']}** months since your last delinquency (severity: **{user_input['MaxDelqEver']}**).
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades are non-delinquent.
+- **Inquiries:** You had a credit inquiry **{user_input['MSinceMostRecentInqexcl7days']}** months ago.
 
-**Advice:** Consider improving your credit by addressing past delinquencies and reducing new credit inquiries. Consulting with a financial advisor might help create a tailored improvement plan.
+**Advice:** Consider strategies to improve your credit score, such as reducing new inquiries and managing delinquencies. A financial advisor could help craft a personalized improvement plan.
 """
 
-            # Fetch AI-enhanced feedback if API key is provided
+            # Provide AI-enhanced feedback if API key is available
             if api_key:
                 try:
                     client = openai.OpenAI(api_key=api_key)
@@ -196,7 +199,7 @@ with tab2:
     if st.session_state.probability is not None:
         user_input = st.session_state.user_input
 
-        # KPI Section: Key Performance Indicators
+        # KPI Section: Display Raw Metrics using st.metric
         st.subheader("Key Performance Indicators")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -207,6 +210,30 @@ with tab2:
             st.metric("Delinquency (Months)", f"{user_input['MSinceMostRecentDelq']}")
         with col4:
             st.metric("Trade Health (%)", f"{user_input['PercentTradesNeverDelq']}%")
+
+        st.markdown("---")
+
+        # Compute dataset means for formulas
+        credit_mean = full_data["ExternalRiskEstimate"].mean()
+        delinq_mean = full_data["MSinceMostRecentDelq"].mean()
+        trade_mean = full_data["PercentTradesNeverDelq"].mean()
+
+        # Compute KPI formulas (as percentage deviation from the dataset mean)
+        credit_dev = (user_input['ExternalRiskEstimate'] - credit_mean) / credit_mean * 100
+        delinq_dev = (user_input['MSinceMostRecentDelq'] - delinq_mean) / delinq_mean * 100
+        trade_dev = (user_input['PercentTradesNeverDelq'] - trade_mean) / trade_mean * 100
+
+        st.subheader("Advanced KPI Analysis")
+        col5, col6, col7 = st.columns(3)
+        with col5:
+            st.metric("Credit Score Deviation", f"{credit_dev:+.2f}%")
+            st.caption(f"Dataset Avg: {credit_mean:.1f}")
+        with col6:
+            st.metric("Delinquency Gap", f"{delinq_dev:+.2f}%")
+            st.caption(f"Dataset Avg: {delinq_mean:.1f} months")
+        with col7:
+            st.metric("Trade Health Diff", f"{trade_dev:+.2f}%")
+            st.caption(f"Dataset Avg: {trade_mean:.1f}%")
 
         st.markdown("---")
         
@@ -235,7 +262,7 @@ with tab2:
         ax.legend()
         st.pyplot(fig)
 
-        # Additional Visualizations for common understanding
+        # Additional Visualizations
 
         # Histogram: Credit Score Distribution
         st.subheader("Credit Score Distribution")
