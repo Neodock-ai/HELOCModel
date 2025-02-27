@@ -105,6 +105,8 @@ tab1, tab2 = st.tabs(["📊 HELOC Predictor", "📈 Dashboard"])
 
 # -----------------------  TAB 1: HELOC PREDICTOR -----------------------
 with tab1:
+    # -- ADDED LOGO HERE --
+    st.image("HELOC_Eligibility_Predictor.png", width=150)
     st.title("🏦 HELOC Eligibility Predictor")
     st.write("📊 Enter your financial details to check HELOC eligibility.")
 
