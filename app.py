@@ -56,7 +56,6 @@ st.markdown("""
     .stSlider>div>div>div {
         background-color: #007bff !important;
     }
-
     </style>
 """, unsafe_allow_html=True)
 
@@ -133,37 +132,49 @@ with tab1:
             st.session_state.prediction = prediction
             st.session_state.user_input = user_input
 
+            # Detailed default feedback messages with actionable insights
             if prediction == "Eligible":
-                st.success(f"✅ Eligible for HELOC! Approval Probability: {probability:.2%}")
-                explanation_prompt = "This applicant is eligible for a HELOC. Can you provide financial advice and responsible loan usage tips?"
-            else:
-                st.error(f"❌ Not Eligible. Approval Probability: {probability:.2%}")
-                explanation_prompt = f"""
-This applicant was denied a HELOC loan.
-- External Risk Estimate: {user_input['ExternalRiskEstimate']}
-- Most Recent Delinquency: {user_input['MSinceMostRecentDelq']} months ago
-- Maximum Delinquency Severity: {user_input['MaxDelqEver']}
-- Percentage of Non-Delinquent Trades: {user_input['PercentTradesNeverDelq']}%
-- Months Since Last Credit Inquiry (Excl. Last 7 Days): {user_input['MSinceMostRecentInqexcl7days']} months
-                """
+                default_feedback = f"""
+Your financial profile indicates eligibility for a HELOC with an approval probability of **{probability:.2%}**.
 
-            # Provide feedback regardless of OpenAI API access
+**Key Observations:**
+- **Credit Health:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}** – a strong indicator.
+- **Delinquency Record:** You have gone **{user_input['MSinceMostRecentDelq']}** months since your last delinquency with a maximum severity of **{user_input['MaxDelqEver']}**.
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades have never been delinquent.
+- **Recent Inquiries:** Your credit inquiry history (last **{user_input['MSinceMostRecentInqexcl7days']}** months) is healthy.
+
+**Advice:** Keep up your good financial habits and monitor your credit regularly. Staying on top of your payments and avoiding new delinquencies will help maintain your eligibility.
+"""
+            else:
+                default_feedback = f"""
+Based on your current financial inputs, your HELOC approval probability is **{probability:.2%}**, and you are currently **not eligible** for a HELOC.
+
+**Key Observations:**
+- **Credit Score:** Your External Risk Estimate is **{user_input['ExternalRiskEstimate']}** which might be below typical thresholds.
+- **Delinquency Record:** You have gone **{user_input['MSinceMostRecentDelq']}** months since your last delinquency, with a severity level of **{user_input['MaxDelqEver']}**.
+- **Trade Performance:** **{user_input['PercentTradesNeverDelq']}%** of your trades show no delinquency, which is a positive note.
+- **Recent Inquiries:** Your record shows **{user_input['MSinceMostRecentInqexcl7days']}** months since your last inquiry, which also factors into your profile.
+
+**Advice:** Consider improving your credit score by addressing past delinquencies and reducing new inquiries. Working with a financial advisor to develop a targeted credit improvement plan could be beneficial.
+"""
+
+            # Provide feedback via AI if available, otherwise use default feedback
             if api_key:
                 client = openai.OpenAI(api_key=api_key)
                 try:
                     response = client.chat.completions.create(
                         model="gpt-4",
-                        messages=[{"role": "user", "content": explanation_prompt}]
+                        messages=[{"role": "user", "content": default_feedback}]
                     )
                     st.write("💡 **AI Financial Insights:**")
                     st.write(response.choices[0].message.content)
                 except Exception as e:
                     st.error(f"⚠️ OpenAI API Error: {str(e)}")
                     st.info("💡 **Default Feedback:**")
-                    st.write(explanation_prompt)
+                    st.write(default_feedback)
             else:
                 st.info("💡 **Default Feedback:**")
-                st.write(explanation_prompt)
+                st.write(default_feedback)
 
         except Exception as e:
             st.error(f"⚠️ Model Prediction Error: {str(e)}")
@@ -171,59 +182,86 @@ This applicant was denied a HELOC loan.
 # -----------------------  TAB 2: DASHBOARD (DYNAMIC INSIGHTS) -----------------------
 with tab2:
     st.title("📈 Personalized HELOC Insights Dashboard")
-    st.write("🔍 Explore insights based on your entered data.")
+    st.write("🔍 Explore a comprehensive analysis of your financial inputs compared to historical data.")
 
     if st.session_state.probability is not None:
         user_input = st.session_state.user_input
 
-        col1, col2, col3 = st.columns(3)
+        # KPI Section: Key Performance Indicators
+        st.subheader("Key Performance Indicators")
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("📈 Approval Probability", f"{st.session_state.probability:.2%}")
+            st.metric("Approval Probability", f"{st.session_state.probability:.2%}")
         with col2:
-            st.metric("💳 Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
+            st.metric("Your Credit Score", f"{user_input['ExternalRiskEstimate']}")
         with col3:
-            st.metric("⚠️ Delinquency Severity", f"{user_input['MaxDelqEver']}")
+            st.metric("Delinquency (Months)", f"{user_input['MSinceMostRecentDelq']}")
+        with col4:
+            st.metric("Trade Health (%)", f"{user_input['PercentTradesNeverDelq']}%")
 
-        st.subheader("📊 Your Credit Score vs Dataset Distribution")
-        fig, ax = plt.subplots(figsize=(6, 3))
-        sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, label="Dataset Distribution", ax=ax)
-        ax.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
+        st.markdown("---")
+        
+        # Comparative Analysis: Display dataset statistics for key metrics
+        numeric_cols = ['ExternalRiskEstimate', 'MSinceMostRecentDelq', 'MaxDelqEver', 'PercentTradesNeverDelq', 'MSinceMostRecentInqexcl7days']
+        stats = full_data[numeric_cols].agg(['mean', 'median']).T.reset_index().rename(columns={'index': 'Metric'})
+        
+        st.subheader("Your Metrics vs. Dataset Averages")
+        st.dataframe(stats.style.format({"mean": "{:.2f}", "median": "{:.2f}"}))
+        
+        # Bar Chart: Compare user values against dataset means
+        st.subheader("Comparison Bar Chart")
+        fig, ax = plt.subplots(figsize=(10, 5))
+        x_labels = numeric_cols
+        user_values = [user_input[col] for col in numeric_cols]
+        dataset_means = [full_data[col].mean() for col in numeric_cols]
+        x = np.arange(len(x_labels))
+        width = 0.35
+
+        ax.bar(x - width/2, user_values, width, label='Your Value', color='teal')
+        ax.bar(x + width/2, dataset_means, width, label='Dataset Mean', color='gray')
+        ax.set_ylabel('Value')
+        ax.set_title('Your Metrics vs. Dataset Mean')
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_labels, rotation=45)
         ax.legend()
         st.pyplot(fig)
 
-        # ------------------ Additional Graphs and Analysis ------------------
-        st.subheader("Correlation Heatmap of Financial Metrics")
-        fig2, ax2 = plt.subplots(figsize=(8, 6))
-        # Only use numeric columns to avoid errors
-        corr = full_data.select_dtypes(include=[np.number]).corr()
-        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
+        # Additional Visualizations for common understanding
+
+        # Histogram: Credit Score Distribution
+        st.subheader("Credit Score Distribution")
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
+        sns.histplot(full_data["ExternalRiskEstimate"], bins=20, kde=True, ax=ax2, color='skyblue')
+        ax2.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Score")
+        ax2.set_xlabel("External Risk Estimate")
+        ax2.set_ylabel("Frequency")
+        ax2.legend()
         st.pyplot(fig2)
 
-        st.subheader("Credit Score vs. Non-Delinquent Trades")
-        fig3, ax3 = plt.subplots(figsize=(8, 6))
-        sns.scatterplot(x="ExternalRiskEstimate", y="PercentTradesNeverDelq", hue="RiskPerformance", data=full_data, ax=ax3)
+        # Scatter Plot: Delinquency vs. Credit Score
+        st.subheader("Delinquency vs. Credit Score")
+        fig3, ax3 = plt.subplots(figsize=(8, 4))
+        sns.scatterplot(x="ExternalRiskEstimate", y="MSinceMostRecentDelq", hue="RiskPerformance", data=full_data, ax=ax3, palette='viridis')
         ax3.axvline(user_input['ExternalRiskEstimate'], color='red', linestyle='--', label="Your Credit Score")
+        ax3.axhline(user_input['MSinceMostRecentDelq'], color='orange', linestyle='--', label="Your Delinquency")
+        ax3.set_xlabel("External Risk Estimate")
+        ax3.set_ylabel("Months Since Most Recent Delinquency")
         ax3.legend()
         st.pyplot(fig3)
 
-        st.subheader("Boxplot: Credit Score Distribution by Risk Performance")
-        fig4, ax4 = plt.subplots(figsize=(8, 6))
-        sns.boxplot(x="RiskPerformance", y="ExternalRiskEstimate", data=full_data, ax=ax4)
+        # Boxplot: Credit Score Distribution by Risk Performance
+        st.subheader("Credit Score Distribution by Risk Performance")
+        fig4, ax4 = plt.subplots(figsize=(8, 4))
+        sns.boxplot(x="RiskPerformance", y="ExternalRiskEstimate", data=full_data, ax=ax4, palette='pastel')
+        ax4.set_xlabel("Risk Performance")
+        ax4.set_ylabel("External Risk Estimate")
         st.pyplot(fig4)
-
-        st.subheader("Distribution: Months Since Most Recent Delinquency")
-        fig5, ax5 = plt.subplots(figsize=(8, 6))
-        sns.histplot(full_data["MSinceMostRecentDelq"], bins=20, kde=True, ax=ax5)
-        ax5.axvline(user_input['MSinceMostRecentDelq'], color='red', linestyle='--', label="Your Value")
-        ax5.legend()
-        st.pyplot(fig5)
     else:
-        st.warning("⚠️ No prediction made yet. Enter details in the HELOC Predictor tab and check eligibility.")
+        st.warning("⚠️ No prediction made yet. Enter your details in the HELOC Predictor tab and check eligibility.")
 
     if api_key:
         st.write("💬 **Ask AI for Insights on Your Data**")
         user_question = st.text_area("❓ Ask anything about your HELOC eligibility:")
-
         if st.button("🤖 Get AI Response"):
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
