@@ -194,7 +194,8 @@ with tab2:
         # ------------------ Additional Graphs and Analysis ------------------
         st.subheader("Correlation Heatmap of Financial Metrics")
         fig2, ax2 = plt.subplots(figsize=(8, 6))
-        corr = full_data.corr()
+        # Only use numeric columns to avoid errors
+        corr = full_data.select_dtypes(include=[np.number]).corr()
         sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax2)
         st.pyplot(fig2)
 
