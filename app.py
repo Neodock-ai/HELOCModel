@@ -8,26 +8,53 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
-# Custom Styling for Dark Mode & Enhanced UI
+# Custom Styling for Black Background & Modern Tabs
 st.markdown("""
     <style>
-    /* Background Image */
+    /* Entire App: Black Background */
     .stApp {
-        background: url('https://source.unsplash.com/1600x900/?finance,technology') no-repeat center fixed;
-        background-size: cover;
+        background-color: #000000 !important;
+        background-image: none !important;
     }
-    
-    /* Title Styling */
-    h1 {
-        color: #ffffff;
-        text-align: center;
+
+    /* Force text to be white on black background */
+    body, h1, h2, h3, h4, h5, h6, label, span, div, p {
+        color: #ffffff !important;
     }
-    
+
+    /* Modern Tabs Styling */
+    /* Container for the tabs */
+    .stTabs {
+        background-color: #1a1a1a !important;
+        border-radius: 8px;
+        padding: 5px;
+        margin-bottom: 20px;
+    }
+    /* Individual tab buttons */
+    .stTabs [data-baseweb="tab"] {
+        background-color: #333333 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 6px 6px 0 0 !important;
+        margin-right: 5px;
+        padding: 0.5rem 1rem;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #444444 !important;
+        color: #ffffff !important;
+    }
+    /* Selected (active) tab */
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #0077b6 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+    }
+
     /* Sidebar Styling */
     .css-1d391kg {
         background-color: rgba(30, 30, 30, 0.8) !important;
     }
-    
+
     /* Custom Buttons with Unique Graphics */
     .stButton>button {
         border-radius: 10px;
@@ -43,7 +70,7 @@ st.markdown("""
         transform: scale(1.05);
         background: linear-gradient(45deg, #005f87, #0088a7);
     }
-    
+
     /* KPI Card Styling for st.metric */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
@@ -54,7 +81,7 @@ st.markdown("""
         box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
         font-weight: bold;
     }
-    
+
     /* Input Sliders */
     .stSlider>div>div>div {
         background-color: #0077b6 !important;
@@ -94,7 +121,7 @@ def load_heloc_data():
 
 heloc_data, full_data = load_heloc_data()
 
-# **Initialize session state if not set**
+# Initialize session state if not set
 if "probability" not in st.session_state:
     st.session_state.probability = None
     st.session_state.prediction = None
@@ -105,9 +132,14 @@ tab1, tab2 = st.tabs(["📊 HELOC Predictor", "📈 Dashboard"])
 
 # -----------------------  TAB 1: HELOC PREDICTOR -----------------------
 with tab1:
-    # -- ADDED LOGO HERE --
-    st.image("HELOC_Eligibility_Predictor.png", width=150)
-    st.title("🏦 HELOC Eligibility Predictor")
+    # Custom HTML to place the logo at the top-left and a heading next to it
+    st.markdown("""
+    <div style="display: flex; align-items: center;">
+        <img src="HELOC_Eligibility_Predictor.png" style="width:80px; margin-right: 15px;">
+        <h2 style="margin: 0;">HELOC Eligibility Predictor</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.write("📊 Enter your financial details to check HELOC eligibility.")
 
     # API Key Input (Optional)
