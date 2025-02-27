@@ -8,67 +8,56 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
-# Custom Styling for Minimalistic Modern UI: Grey background, orange text, flat design
+# Custom Styling for Dark Mode & Enhanced UI
 st.markdown("""
     <style>
-    /* Minimalistic Grey Background */
+    /* Background Image */
     .stApp {
-        background-color: #f7f7f7 !important;
+        background: url('https://source.unsplash.com/1600x900/?finance,technology') no-repeat center fixed;
+        background-size: cover;
     }
     
-    /* Title and Headings with Orange Text */
-    h1, h2, h3, h4, h5, h6 {
-        color: #FF7F50; /* modern orange */
+    /* Title Styling */
+    h1 {
+        color: #ffffff;
         text-align: center;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        font-weight: 600;
     }
     
-    /* Minimalistic Sidebar Styling */
+    /* Sidebar Styling */
     .css-1d391kg {
-        background-color: #e0e0e0 !important;
+        background-color: rgba(30, 30, 30, 0.8) !important;
     }
     
-    /* Custom Flat Buttons with Modern Orange */
+    /* Custom Buttons with Unique Graphics */
     .stButton>button {
+        border-radius: 10px;
         border: none;
-        background-color: #FF7F50;
+        background: linear-gradient(45deg, #0077b6, #00b4d8);
         color: white;
         font-size: 16px;
         padding: 10px 20px;
-        border-radius: 5px;
-        transition: background-color 0.3s;
+        transition: transform 0.2s, background 0.2s;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     }
     .stButton>button:hover {
-        background-color: #FF5722;
+        transform: scale(1.05);
+        background: linear-gradient(45deg, #005f87, #0088a7);
     }
     
-    /* Minimalistic Metric Cards */
+    /* KPI Card Styling for st.metric */
     div[data-testid="metric-container"] {
-        background-color: white;
-        border: 1px solid #e0e0e0;
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
         padding: 10px;
-        border-radius: 8px;
-        color: #333 !important;
+        border-radius: 10px;
+        color: #102a43 !important;
         text-align: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
         font-weight: bold;
     }
     
     /* Input Sliders */
     .stSlider>div>div>div {
-        background-color: #FF7F50 !important;
-    }
-    
-    /* General text styling */
-    body {
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        color: #333;
-    }
-    
-    /* Sidebar additional styling */
-    .css-1v3fvcr {
-        background-color: #e0e0e0;
+        background-color: #0077b6 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -264,7 +253,7 @@ with tab2:
         x = np.arange(len(x_labels))
         width = 0.35
 
-        ax.bar(x - width/2, user_values, width, label='Your Value', color='#FF7F50')
+        ax.bar(x - width/2, user_values, width, label='Your Value', color='teal')
         ax.bar(x + width/2, dataset_means, width, label='Dataset Mean', color='gray')
         ax.set_ylabel('Value')
         ax.set_title('Your Metrics vs. Dataset Mean')
